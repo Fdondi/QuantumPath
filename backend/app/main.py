@@ -10,6 +10,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 
 from backend.app import ibm_client
 from backend.app.models import (
@@ -54,6 +56,24 @@ def read_app_version() -> str:
 _APP_VERSION = read_app_version()
 app = FastAPI(title="Quantum Error Dungeon", version=_APP_VERSION)
 
+
+def _http_cache_disabled() -> bool:
+    """Cloud Run sets K_SERVICE; avoid CDN/browser caching stale HTML and API JSON."""
+    if os.environ.get("K_SERVICE", "").strip():
+        return True
+    flag = os.environ.get("DISABLE_HTTP_CACHE", "").strip().lower()
+    return flag in ("1", "true", "yes", "on")
+
+
+class _DisableHttpCacheMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        if _http_cache_disabled():
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
@@ -61,6 +81,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(_DisableHttpCacheMiddleware)
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 _INDEX = _STATIC_DIR / "index.html"
