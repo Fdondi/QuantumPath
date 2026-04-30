@@ -10,7 +10,10 @@ from pydantic import BaseModel, Field
 class IBMContext(BaseModel):
     """Credentials passed per request; never persisted."""
 
-    api_key: str = Field(..., description="IBM Quantum Platform API key")
+    api_key: str | None = Field(
+        default=None,
+        description="IBM Quantum Platform API key. Optional when server env IBM_QUANTUM_API_KEY is configured.",
+    )
     instance_crn: str | None = Field(
         default=None,
         description="Optional instance CRN (recommended)",
@@ -38,8 +41,8 @@ class CalibrationRequest(IBMContext):
     use_heron2_official_layout: bool = Field(
         default=False,
         description=(
-            "When the backend is IBM Heron revision 2 with 156 qubits, replace lattice positions "
-            "with vendored IBM Fez reference coordinates (16-wide heavy-hex brick)."
+            "Compatibility field. Heron rev 2 (156 qubits) now always uses vendored IBM Fez "
+            "reference coordinates automatically."
         ),
     )
 

@@ -244,11 +244,99 @@
       }
 
       #topology-graph {
+        position: relative;
         width: 100%;
         height: min(760px, 78vh);
         min-height: 480px;
         border-radius: 14px;
         background: rgba(7, 11, 18, 0.4);
+      }
+
+      .cat-overlay {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        overflow: hidden;
+        z-index: 10;
+      }
+
+      .cat-sprite {
+        position: absolute;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        transform: translate(-50%, -100%) translateY(-10px);
+        transition: left 0.42s cubic-bezier(0.4, 0, 0.2, 1), top 0.42s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
+        will-change: left, top;
+      }
+
+      .cat-sprite.visible {
+        display: flex;
+      }
+
+      .cat-crown {
+        font-size: 15px;
+        line-height: 1;
+        display: none;
+      }
+
+      .cat-crown.show {
+        display: block;
+      }
+
+      .cat-emoji {
+        font-size: 26px;
+        line-height: 1;
+        filter: drop-shadow(0 0 7px rgba(125, 211, 252, 0.75));
+        transition: filter 0.2s;
+      }
+
+      .cat-sprite.danger .cat-emoji {
+        filter: drop-shadow(0 0 10px rgba(248, 113, 113, 0.9));
+      }
+
+      .cat-lives {
+        font-size: 10px;
+        background: rgba(9, 11, 19, 0.88);
+        border: 1px solid rgba(125, 211, 252, 0.3);
+        border-radius: 7px;
+        padding: 1px 5px;
+        margin-top: 3px;
+        color: #f87171;
+        font-weight: 700;
+        white-space: nowrap;
+        transition: color 0.2s;
+      }
+
+      .cat-lives.full {
+        color: #86efac;
+        border-color: rgba(134, 239, 172, 0.35);
+      }
+
+      @keyframes catShake {
+        0%   { transform: translate(-50%, -100%) translateY(-10px) scale(1) rotate(0deg); }
+        18%  { transform: translate(-50%, -100%) translateY(-18px) scale(1.35) rotate(-12deg); }
+        38%  { transform: translate(-50%, -100%) translateY(-14px) scale(1.2) rotate(10deg); }
+        58%  { transform: translate(-50%, -100%) translateY(-12px) scale(1.1) rotate(-5deg); }
+        78%  { transform: translate(-50%, -100%) translateY(-11px) scale(1.05) rotate(3deg); }
+        100% { transform: translate(-50%, -100%) translateY(-10px) scale(1) rotate(0deg); }
+      }
+
+      .cat-sprite.exploding {
+        animation: catShake 0.42s ease forwards;
+      }
+
+      @keyframes catArrive {
+        0%   { transform: translate(-50%, -100%) translateY(-10px) scale(1); }
+        35%  { transform: translate(-50%, -100%) translateY(-26px) scale(1.15); }
+        60%  { transform: translate(-50%, -100%) translateY(-8px) scale(0.95); }
+        80%  { transform: translate(-50%, -100%) translateY(-13px) scale(1.05); }
+        100% { transform: translate(-50%, -100%) translateY(-10px) scale(1); }
+      }
+
+      .cat-sprite.arriving {
+        animation: catArrive 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
       }
 
       .topology-placeholder {
@@ -304,7 +392,12 @@
           <h2>Connection</h2>
           <label>
             IBM Quantum API key
-            <input id="api-key" autocomplete="off" type="password" placeholder="Paste token for this session" />
+            <input
+              id="api-key"
+              autocomplete="off"
+              type="password"
+              placeholder="Provide token for this session"
+            />
           </label>
           <label>
             Instance CRN
@@ -323,10 +416,9 @@
             </select>
           </label>
           <button class="secondary" id="load-calibration" type="button">Load Calibration</button>
-          <label id="heron2-layout-wrap" class="checkbox-inline" hidden>
-            <input type="checkbox" id="heron2-official-layout" />
-            <span>Reference Heron2 lattice (vendored IBM Fez coordinates, 16-wide brick)</span>
-          </label>
+          <p id="heron2-layout-note" class="small" hidden>
+            Heron2 detected: using vendored IBM Fez reference lattice automatically.
+          </p>
 
           <h2>Run Path</h2>
           <label>
@@ -353,7 +445,7 @@
             <button class="secondary" id="run-hardware" type="button">Run Hardware</button>
           </div>
           <p class="small">
-            Tokens are sent only with the request you trigger and are not stored by this page.
+            <span id="auth-mode-note">Checking server credential mode...</span> Tokens are sent only with the request you trigger and are not stored by this page.
           </p>
         </form>
 
@@ -382,7 +474,15 @@
               <div class="metric"><span>Couplers</span><strong id="coupler-count">-</strong></div>
             </div>
             <div class="map">
-              <div id="topology-graph" aria-label="Qubit coupling map"></div>
+              <div id="topology-graph" aria-label="Qubit coupling map">
+                <div class="cat-overlay" id="cat-overlay">
+                  <div class="cat-sprite" id="cat-sprite">
+                    <div class="cat-crown" id="cat-crown">👑</div>
+                    <div class="cat-emoji" id="cat-emoji">🐱</div>
+                    <div class="cat-lives" id="cat-lives">❤️ ×3</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -404,6 +504,25 @@
         })
         .catch(() => {});
 
+      fetch("/api/config")
+        .then((r) => r.json())
+        .then((d) => {
+          const apiInput = document.getElementById("api-key");
+          const note = document.getElementById("auth-mode-note");
+          if (!apiInput || !note) return;
+          if (d?.has_env_api_key) {
+            apiInput.placeholder = "Token optional: server env key detected";
+            note.textContent = "Server env key detected. API key field is optional.";
+          } else {
+            apiInput.placeholder = "Provide token for this session";
+            note.textContent = "Server env key not detected. API key field is required.";
+          }
+        })
+        .catch(() => {
+          const note = document.getElementById("auth-mode-note");
+          if (note) note.textContent = "Could not detect server env key. Enter API key to proceed.";
+        });
+
       const state = {
         backends: [],
         calibration: null,
@@ -412,6 +531,7 @@
         topologyNetwork: null,
         topologyNodes: null,
         topologyEdges: null,
+        catAnim: { running: false },
       };
 
       const $ = (id) => document.getElementById(id);
@@ -446,11 +566,7 @@
       }
 
       function requireCredentials() {
-        const body = credentials();
-        if (!body.api_key) {
-          throw new Error("IBM Quantum API key is required.");
-        }
-        return body;
+        return credentials();
       }
 
       function selectedBackendName() {
@@ -510,7 +626,6 @@
       }
 
       function qubitReadoutErrorProb(q) {
-        if (typeof q.readout_error === "number") return q.readout_error;
         if (typeof q.prob_meas1_prep0 === "number") return q.prob_meas1_prep0;
         return null;
       }
@@ -646,28 +761,40 @@
         const adj = buildAdjacency(n, edges);
         const pathArr = parsePathAllowEmpty().filter((i) => i >= 0 && i < n);
         const pathSet = new Set(pathArr);
+        const pathEdgeSet = new Set();
+        for (let k = 0; k < pathArr.length - 1; k++) {
+          const a = pathArr[k];
+          const b = pathArr[k + 1];
+          const lo2 = Math.min(a, b);
+          const hi2 = Math.max(a, b);
+          pathEdgeSet.add(`e-${lo2}-${hi2}`);
+        }
         const last = pathArr.length ? pathArr[pathArr.length - 1] : null;
         const reachable = new Set();
         if (last !== null && adj[last]) {
           for (const j of adj[last]) reachable.add(j);
         }
         const errors = cal.qubits.map(qubitReadoutErrorProb).filter((x) => x !== null);
-        const lo = errors.length ? Math.min(...errors) : 0;
-        const hi = errors.length ? Math.max(...errors) : 1;
-        const updates = [];
+        const loErr = errors.length ? Math.min(...errors) : 0;
+        const hiErr = errors.length ? Math.max(...errors) : 1;
+
+        const nodeUpdates = [];
         for (let i = 0; i < n; i++) {
           const q = cal.qubits[i];
-          const bg = errorColorFill(q, lo, hi);
+          const bg = errorColorFill(q, loErr, hiErr);
           let border = "rgba(125,211,252,0.45)";
           let borderWidth = n > 120 ? 1 : 1.5;
+          let shadow = { enabled: false };
           if (pathSet.has(i)) {
-            border = "#38bdf8";
-            borderWidth = n > 120 ? 2.5 : 3;
+            border = "#7dd3fc";
+            borderWidth = n > 120 ? 3.5 : 4.5;
+            shadow = { enabled: true, color: "rgba(125,211,252,0.65)", size: n > 120 ? 14 : 18, x: 0, y: 0 };
           } else if (reachable.has(i)) {
             border = "#c4f080";
             borderWidth = n > 120 ? 2 : 2.5;
+            shadow = { enabled: true, color: "rgba(196,240,128,0.4)", size: 10, x: 0, y: 0 };
           }
-          updates.push({
+          nodeUpdates.push({
             id: i,
             color: {
               background: bg,
@@ -676,9 +803,27 @@
               hover: { background: bg, border: "#a5f3fc" },
             },
             borderWidth,
+            shadow,
           });
         }
-        state.topologyNodes.update(updates);
+        state.topologyNodes.update(nodeUpdates);
+
+        if (state.topologyEdges) {
+          const edgeUpdates = state.topologyEdges.get().map((edge) => {
+            const isPath = pathEdgeSet.has(edge.id);
+            return {
+              id: edge.id,
+              color: isPath
+                ? { color: "#38bdf8", highlight: "#e0f2fe", hover: "#bae6fd", opacity: 1 }
+                : { color: "#3b82f6", highlight: "#60a5fa", hover: "#93c5fd", opacity: 0.85 },
+              width: isPath ? (n > 120 ? 11 : 13) : (n > 120 ? 6 : 7),
+              shadow: isPath
+                ? { enabled: true, color: "rgba(56,189,248,0.55)", size: 8, x: 0, y: 0 }
+                : { enabled: false },
+            };
+          });
+          state.topologyEdges.update(edgeUpdates);
+        }
       }
 
       function buildTopologyNetwork() {
@@ -686,6 +831,8 @@
         if (!cal?.qubits?.length || typeof vis === "undefined") return;
 
         destroyTopologyNetwork();
+        // Save the overlay before vis-network clears the container (it removes all children).
+        const savedOverlay = document.getElementById("cat-overlay");
         topologyContainer.innerHTML = "";
 
         const qubits = cal.qubits;
@@ -779,6 +926,8 @@
           { nodes: state.topologyNodes, edges: state.topologyEdges },
           options,
         );
+        // Re-attach the overlay AFTER vis-network (which wipes all container children internally).
+        if (savedOverlay) topologyContainer.appendChild(savedOverlay);
 
         setTimeout(() => {
           state.topologyNetwork.fit({
@@ -793,30 +942,179 @@
           }
         });
 
-        applyTopologyHighlights();
+        applyPathVisuals();
       }
 
       function renderTopologyGraph() {
         const cal = state.calibration;
         destroyTopologyNetwork();
         if (!cal?.qubits?.length) {
+          const savedOverlay2 = document.getElementById("cat-overlay");
           topologyContainer.innerHTML =
             '<p class="topology-placeholder">Load calibration to see couplers and qubits.</p>';
+          if (savedOverlay2) topologyContainer.appendChild(savedOverlay2);
           return;
         }
         if (typeof vis === "undefined") {
+          const savedOverlay3 = document.getElementById("cat-overlay");
           topologyContainer.innerHTML =
             '<p class="topology-placeholder">Graph library failed to load (check network / CSP).</p>';
+          if (savedOverlay3) topologyContainer.appendChild(savedOverlay3);
           return;
         }
         buildTopologyNetwork();
       }
 
+      // ── Cat sprite helpers ──────────────────────────────────────────────────
+
+      const catEl = {
+        get sprite() { return document.getElementById("cat-sprite"); },
+        get emoji()  { return document.getElementById("cat-emoji"); },
+        get lives()  { return document.getElementById("cat-lives"); },
+        get crown()  { return document.getElementById("cat-crown"); },
+      };
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function getNodeDomPos(nodeId) {
+        if (!state.topologyNetwork) return null;
+        const positions = state.topologyNetwork.getPositions([nodeId]);
+        const canvasPos = positions[nodeId];
+        if (!canvasPos) return null;
+        // canvasToDOM returns pixel coords relative to the vis-network canvas element,
+        // which fills topologyContainer from (0,0) — the same origin as the .cat-overlay.
+        return state.topologyNetwork.canvasToDOM(canvasPos);
+      }
+
+      function catMoveTo(nodeId) {
+        const pos = getNodeDomPos(nodeId);
+        if (!pos) return;
+        catEl.sprite.style.left = pos.x + "px";
+        catEl.sprite.style.top  = pos.y + "px";
+      }
+
+      function catShow(nodeId) {
+        catMoveTo(nodeId);
+        catEl.sprite.classList.add("visible");
+      }
+
+      function catHide() {
+        catEl.sprite.classList.remove("visible", "exploding", "arriving", "danger");
+        catEl.crown.classList.remove("show");
+      }
+
+      function catSetEmoji(char) {
+        catEl.emoji.textContent = char;
+      }
+
+      function catSetLives(remaining, total) {
+        const el = catEl.lives;
+        el.textContent = `❤️ ×${remaining}`;
+        el.classList.toggle("full", remaining === total);
+      }
+
+      function catTriggerClass(cls, duration) {
+        const s = catEl.sprite;
+        s.classList.remove(cls);
+        void s.offsetWidth; // force reflow
+        s.classList.add(cls);
+        return sleep(duration).then(() => s.classList.remove(cls));
+      }
+
+      function catShowCrown() {
+        catEl.crown.classList.add("show");
+      }
+
+      function catUpdatePosition() {
+        const path = state.pathSelection;
+        if (!path.length || !state.topologyNetwork) return;
+        catMoveTo(path[0]);
+      }
+
+      // ── Cat animation after run result ─────────────────────────────────────
+
+      async function animateCatPath(data) {
+        state.catAnim.running = false;
+        await sleep(30);
+        state.catAnim.running = true;
+
+        const path = data.path;
+        const bits = data.measured_bits;
+        if (!bits || !path || !state.topologyNetwork) return;
+
+        const startLives = (data.lives_remaining ?? 0) + (data.lives_lost ?? 0);
+        let lives = startLives;
+
+        catSetEmoji("🐱");
+        catEl.crown.classList.remove("show");
+        catEl.sprite.classList.remove("danger");
+        catSetLives(lives, startLives);
+        catShow(path[0]);
+
+        await sleep(480);
+        if (!state.catAnim.running) return;
+
+        for (let i = 0; i < bits.length; i++) {
+          if (!state.catAnim.running) return;
+
+          if (bits[i] === 1) {
+            lives--;
+            catSetLives(lives, startLives);
+            catEl.sprite.classList.add("danger");
+            catSetEmoji("💥");
+            await catTriggerClass("exploding", 420);
+            if (!state.catAnim.running) return;
+
+            if (lives <= 0) {
+              catSetEmoji("👻");
+              catEl.sprite.classList.remove("danger");
+              return;
+            }
+
+            catSetEmoji("🐱");
+            catEl.sprite.classList.remove("danger");
+            await sleep(160);
+            if (!state.catAnim.running) return;
+          }
+
+          if (i < path.length - 1) {
+            catMoveTo(path[i + 1]);
+            await catTriggerClass("arriving", 500);
+            if (!state.catAnim.running) return;
+          }
+        }
+
+        if (!state.catAnim.running) return;
+
+        if (data.success) {
+          catShowCrown();
+          catSetEmoji("😸");
+        }
+      }
+
+      // ── Path visuals ───────────────────────────────────────────────────────
+
       function applyPathVisuals() {
         applyTopologyHighlights();
+        const path = state.pathSelection;
+        if (!path.length) {
+          catHide();
+        } else if (!catEl.sprite.classList.contains("visible")) {
+          const startLives = Number(fields.lives.value) || 3;
+          catSetEmoji("🐱");
+          catEl.crown.classList.remove("show");
+          catEl.sprite.classList.remove("danger");
+          catSetLives(startLives, startLives);
+          catShow(path[0]);
+        } else {
+          catUpdatePosition();
+        }
       }
 
       function setPathSelection(next) {
+        if (!next.length) state.catAnim.running = false;
         state.pathSelection = next;
         fields.path.value = next.join(",");
         applyPathVisuals();
@@ -882,18 +1180,15 @@
         $("readout-error").textContent = formatPercent(calibration?.median_readout_error);
         $("twoq-error").textContent = formatPercent(calibration?.median_two_qubit_error);
         $("coupler-count").textContent = calibration?.coupling_edges?.length ?? "-";
-        const wrap = $("heron2-layout-wrap");
-        const heronCb = $("heron2-official-layout");
+        const note = $("heron2-layout-note");
         if (!calibration) {
-          wrap.hidden = true;
-          heronCb.checked = false;
+          note.hidden = true;
         } else if (calibration.heron2_official_layout_available) {
-          wrap.hidden = false;
-          heronCb.checked = Boolean(calibration.use_heron2_official_layout_applied);
+          note.hidden = false;
         } else {
-          wrap.hidden = true;
-          heronCb.checked = false;
+          note.hidden = true;
         }
+        state.catAnim.running = false;
         state.pathSelection = [];
         fields.path.value = "";
         renderTopologyGraph();
@@ -949,11 +1244,9 @@
 
       $("load-calibration").addEventListener("click", (event) =>
         withBusy(event.currentTarget, async () => {
-          const wrap = $("heron2-layout-wrap");
           const data = await postJson("/api/calibration", {
             ...requireCredentials(),
             backend_name: selectedBackendName(),
-            use_heron2_official_layout: !wrap.hidden && $("heron2-official-layout").checked,
           });
           state.calibration = data;
           updateCalibration(data);
@@ -962,46 +1255,47 @@
         }),
       );
 
-      $("heron2-official-layout").addEventListener("change", () => {
-        const wrap = $("heron2-layout-wrap");
-        if (wrap.hidden || !state.calibration) return;
-        const btn = $("load-calibration");
-        withBusy(btn, async () => {
-          const data = await postJson("/api/calibration", {
-            ...requireCredentials(),
-            backend_name: selectedBackendName(),
-            use_heron2_official_layout: $("heron2-official-layout").checked,
-          });
-          state.calibration = data;
-          updateCalibration(data);
-          setStatus(`Loaded calibration for ${data.backend_name}.`, "ok");
-          showJson(data);
-        });
-      });
-
       $("clear-path").addEventListener("click", () => setPathSelection([]));
 
       fields.path.addEventListener("input", () => {
+        state.catAnim.running = false;
         state.pathSelection = parsePathAllowEmpty();
         applyPathVisuals();
+      });
+
+      fields.lives.addEventListener("input", () => {
+        if (catEl.sprite.classList.contains("visible")) {
+          const v = Number(fields.lives.value) || 3;
+          catSetLives(v, v);
+        }
       });
 
       async function runPath(event, demoMode) {
         await withBusy(event.currentTarget, async () => {
           const path = parsePath();
           const demoStrategy = fields.demoStrategy.value;
+          const runStartingLives = Number(fields.lives.value) || 3;
+          state.catAnim.running = false;
+          state.pathSelection = [...path];
+          fields.path.value = path.join(",");
+          catSetEmoji("🐱");
+          catEl.crown.classList.remove("show");
+          catEl.sprite.classList.remove("danger");
+          catSetLives(runStartingLives, runStartingLives);
+          catShow(path[0]);
+          applyTopologyHighlights();
           const payload = {
             ...requireCredentials(),
             backend_name: selectedBackendName(),
             path,
-            starting_lives: Number(fields.lives.value),
+            starting_lives: runStartingLives,
             demo_mode: demoMode,
           };
           if (demoMode) payload.demo_strategy = demoStrategy;
           const data = await postJson("/api/run-path", payload);
           state.pathSelection = [...path];
           fields.path.value = path.join(",");
-          applyPathVisuals();
+          applyTopologyHighlights();
           const demoLabels = {
             deterministic: "deterministic demo",
             perfect: "perfect-outcome demo",
@@ -1014,6 +1308,7 @@
             data.success ? "ok" : "error",
           );
           showJson(data);
+          animateCatPath(data);
         });
       }
 

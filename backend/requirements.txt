@@ -5,3 +5,4 @@ qiskit-ibm-runtime==0.46.1
 pydantic==2.10.4
 python-multipart==0.0.20
 networkx==3.4.2
+python-dotenv==1.0.1

@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
@@ -23,6 +24,16 @@ from backend.app.models import (
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _load_env_files() -> None:
+    repo_root = _repo_root()
+    load_dotenv(repo_root / ".env")
+    load_dotenv(Path("/app/.env"))
+    load_dotenv()
+
+
+_load_env_files()
 
 
 def read_app_version() -> str:
@@ -65,10 +76,33 @@ def api_version():
     return {"version": _APP_VERSION}
 
 
+@app.get("/api/config")
+def api_config():
+    return {
+        "has_env_api_key": bool(os.environ.get("IBM_QUANTUM_API_KEY", "").strip()),
+        "has_env_instance_crn": bool(os.environ.get("IBM_QUANTUM_INSTANCE_CRN", "").strip()),
+    }
+
+
+def _resolve_ibm_context(api_key: str | None, instance_crn: str | None) -> tuple[str, str | None]:
+    resolved_api_key = (api_key or "").strip() or os.environ.get("IBM_QUANTUM_API_KEY", "").strip()
+    if not resolved_api_key:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "IBM Quantum API key is required. Provide api_key in the request or set "
+                "IBM_QUANTUM_API_KEY in the environment."
+            ),
+        )
+    resolved_instance = (instance_crn or "").strip() or os.environ.get("IBM_QUANTUM_INSTANCE_CRN", "").strip()
+    return resolved_api_key, (resolved_instance or None)
+
+
 @app.post("/api/backends", response_model=BackendsResponse)
 def post_backends(body: BackendsRequest):
+    api_key, instance_crn = _resolve_ibm_context(body.api_key, body.instance_crn)
     try:
-        backends = ibm_client.list_backends(body.api_key, body.instance_crn)
+        backends = ibm_client.list_backends(api_key, instance_crn)
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     return BackendsResponse(backends=backends)
@@ -76,10 +110,11 @@ def post_backends(body: BackendsRequest):
 
 @app.post("/api/calibration", response_model=CalibrationResponse)
 def post_calibration(body: CalibrationRequest):
+    api_key, instance_crn = _resolve_ibm_context(body.api_key, body.instance_crn)
     try:
         return ibm_client.fetch_calibration(
-            body.api_key,
-            body.instance_crn,
+            api_key,
+            instance_crn,
             body.backend_name,
             use_heron2_official_layout=body.use_heron2_official_layout,
         )
@@ -89,7 +124,8 @@ def post_calibration(body: CalibrationRequest):
 
 @app.post("/api/run-path", response_model=RunPathResponse)
 def post_run_path(body: RunPathRequest):
-    cal = ibm_client.fetch_calibration(body.api_key, body.instance_crn, body.backend_name)
+    api_key, instance_crn = _resolve_ibm_context(body.api_key, body.instance_crn)
+    cal = ibm_client.fetch_calibration(api_key, instance_crn, body.backend_name)
     edges: set[tuple[int, int]] = set()
     for a, b in cal.coupling_edges:
         edges.add((a, b))
@@ -135,9 +171,7 @@ def post_run_path(body: RunPathRequest):
         )
 
     try:
-        bs, job_id = ibm_client.run_path_hardware(
-            body.api_key, body.instance_crn, body.backend_name, body.path
-        )
+        bs, job_id = ibm_client.run_path_hardware(api_key, instance_crn, body.backend_name, body.path)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 

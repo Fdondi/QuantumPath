@@ -200,8 +200,10 @@ def fetch_calibration(
         qubit_grid = coords_from_backend_configuration(backend)
     nx_pos = None if qubit_grid is not None else symmetric_layout_coordinates(n_qubits, coupling_edges)
 
+    # Always apply vendored Fez coordinates when the backend is verified Heron rev 2 (156q).
+    # Keep the request flag for compatibility, but do not require it.
     use_heron2_official_layout_applied = False
-    if use_heron2_official_layout and heron2_official_layout_available and official_heron2 is not None:
+    if heron2_official_layout_available and official_heron2 is not None:
         qubit_grid = official_heron2
         nx_pos = None
         use_heron2_official_layout_applied = True
