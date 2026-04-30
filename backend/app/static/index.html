@@ -78,7 +78,7 @@
       }
 
       .lede {
-        max-width: 760px;
+        max-width: 100%;
         color: var(--muted);
         font-size: 1.05rem;
         line-height: 1.65;
@@ -365,6 +365,11 @@
         line-height: 1.5;
       }
 
+      .processor-intro {
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
       @media (max-width: 860px) {
         .grid,
         .metric-row,
@@ -382,8 +387,12 @@
           <span class="title-version" id="app-version" aria-label="Application version"></span>
         </h1>
         <p class="lede">
-          Explore IBM Quantum backends, inspect calibration data, then run a path through the selected
-          qubits. Demo mode is clearly synthetic and only exercises the local scoring path.
+          QuantumPath is a fun game using quantum errors to make going around the quantum processor exciting.
+          <br />Also made interesting by the peculiar layout of qbit on the processor -not all qbits are connected.
+          <br />Send the kitten on a mission from Qbit to adjacent Qbit. They shoud all be zero, but... are they? If an error strikes, that can be the end of your journey!
+          <br />
+          <br />Note the radomness of the errors has <i>nothing to do</i> with the useful randomness of superimposed states.
+          <br />It's more of a tutorial monster you have to slay before anything interesting.
         </p>
       </header>
 
