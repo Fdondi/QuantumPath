@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quantum Error Dungeon</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #090b13;
+        --panel: #121827;
+        --panel-soft: #182033;
+        --accent: #7dd3fc;
+        --accent-strong: #38bdf8;
+        --danger: #f87171;
+        --ok: #86efac;
+        --text: #e5edf7;
+        --muted: #93a4b8;
+        --border: #27344a;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 34rem),
+          radial-gradient(circle at bottom right, rgba(167, 139, 250, 0.16), transparent 30rem),
+          var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(1180px, calc(100vw - 32px));
+        margin: 0 auto;
+        padding: 42px 0;
+      }
+
+      header {
+        display: grid;
+        gap: 14px;
+        margin-bottom: 28px;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 5vw, 4.5rem);
+        line-height: 0.95;
+        letter-spacing: -0.07em;
+      }
+
+      h1.title-with-version {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.35em 0.55em;
+      }
+
+      .title-version {
+        font-size: max(0.7rem, 0.26em);
+        font-weight: 500;
+        letter-spacing: 0.03em;
+        color: var(--muted);
+      }
+
+      h2 {
+        font-size: 1.05rem;
+      }
+
+      .lede {
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1.65;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(320px, 430px) 1fr;
+        gap: 18px;
+        align-items: start;
+      }
+
+      .panel {
+        background: rgba(18, 24, 39, 0.88);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        padding: 20px;
+        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.26);
+        backdrop-filter: blur(16px);
+      }
+
+      .stack {
+        display: grid;
+        gap: 14px;
+      }
+
+      label {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      label.checkbox-inline {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      label.checkbox-inline input {
+        width: auto;
+        min-height: auto;
+        margin-top: 3px;
+        cursor: pointer;
+      }
+
+      label.checkbox-inline span {
+        line-height: 1.45;
+        cursor: pointer;
+      }
+
+      input,
+      select,
+      button {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        font: inherit;
+      }
+
+      input,
+      select {
+        min-height: 42px;
+        background: #0c1220;
+        color: var(--text);
+        padding: 10px 12px;
+      }
+
+      input:focus,
+      select:focus,
+      button:focus-visible {
+        border-color: var(--accent);
+        outline: 2px solid rgba(125, 211, 252, 0.2);
+      }
+
+      button {
+        min-height: 44px;
+        padding: 10px 14px;
+        cursor: pointer;
+        background: linear-gradient(135deg, var(--accent), #a78bfa);
+        color: #06111f;
+        font-weight: 800;
+      }
+
+      button.secondary {
+        background: var(--panel-soft);
+        color: var(--text);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.58;
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .status {
+        min-height: 42px;
+        border-radius: 12px;
+        padding: 11px 12px;
+        background: #0c1220;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .status.ok {
+        color: var(--ok);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .cards {
+        display: grid;
+        gap: 12px;
+      }
+
+      .metric-row,
+      .backend-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+      }
+
+      .metric,
+      .backend {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 14px;
+        background: rgba(12, 18, 32, 0.8);
+      }
+
+      .metric span,
+      .backend span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.78rem;
+        margin-bottom: 5px;
+      }
+
+      .metric strong,
+      .backend strong {
+        font-size: 1.05rem;
+      }
+
+      .map {
+        min-height: 500px;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background:
+          linear-gradient(rgba(125, 211, 252, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(125, 211, 252, 0.06) 1px, transparent 1px),
+          rgba(12, 18, 32, 0.72);
+        background-size: 32px 32px;
+        padding: 10px;
+        overflow: hidden;
+      }
+
+      #topology-graph {
+        width: 100%;
+        height: min(760px, 78vh);
+        min-height: 480px;
+        border-radius: 14px;
+        background: rgba(7, 11, 18, 0.4);
+      }
+
+      .topology-placeholder {
+        margin: 0;
+        padding: 48px 20px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      pre {
+        max-height: 260px;
+        overflow: auto;
+        margin: 0;
+        padding: 14px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: #070b12;
+        color: #c7d2fe;
+        font-size: 0.82rem;
+      }
+
+      .small {
+        color: var(--muted);
+        font-size: 0.86rem;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 860px) {
+        .grid,
+        .metric-row,
+        .backend-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1 class="title-with-version">
+          Quantum Error Dungeon
+          <span class="title-version" id="app-version" aria-label="Application version"></span>
+        </h1>
+        <p class="lede">
+          Explore IBM Quantum backends, inspect calibration data, then run a path through the selected
+          qubits. Demo mode is clearly synthetic and only exercises the local scoring path.
+        </p>
+      </header>
+
+      <section class="grid">
+        <form class="panel stack" id="control-form">
+          <h2>Connection</h2>
+          <label>
+            IBM Quantum API key
+            <input id="api-key" autocomplete="off" type="password" placeholder="Paste token for this session" />
+          </label>
+          <label>
+            Instance CRN
+            <input id="instance-crn" autocomplete="off" placeholder="Optional, recommended" />
+          </label>
+          <div class="actions">
+            <button id="load-backends" type="button">Load Backends</button>
+            <button class="secondary" id="check-health" type="button">Check API</button>
+          </div>
+
+          <h2>Backend</h2>
+          <label>
+            Backend
+            <select id="backend-select">
+              <option value="">Load backends first</option>
+            </select>
+          </label>
+          <button class="secondary" id="load-calibration" type="button">Load Calibration</button>
+          <label id="heron2-layout-wrap" class="checkbox-inline" hidden>
+            <input type="checkbox" id="heron2-official-layout" />
+            <span>Reference Heron2 lattice (vendored IBM Fez coordinates, 16-wide brick)</span>
+          </label>
+
+          <h2>Run Path</h2>
+          <label>
+            Qubit path (click nodes below, or edit)
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px">
+              <input id="path" placeholder="Tap qubits on the map" autocomplete="off" />
+              <button class="secondary" id="clear-path" type="button">Clear</button>
+            </div>
+          </label>
+          <label>
+            Starting lives
+            <input id="lives" min="1" max="100" type="number" value="3" />
+          </label>
+          <label>
+            Demo strategy (Run Demo only)
+            <select id="demo-strategy">
+              <option value="deterministic">Hash — deterministic synthetic bits</option>
+              <option value="perfect">Perfect — all zeros (preview success)</option>
+              <option value="noisy">Noisy — random using calibration errors</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="run-demo" type="button">Run Demo</button>
+            <button class="secondary" id="run-hardware" type="button">Run Hardware</button>
+          </div>
+          <p class="small">
+            Tokens are sent only with the request you trigger and are not stored by this page.
+          </p>
+        </form>
+
+        <section class="stack">
+          <div class="panel stack">
+            <h2>Status</h2>
+            <div class="status" id="status">Ready. Start by checking the API or loading backends.</div>
+          </div>
+
+          <div class="panel stack">
+            <h2>Backend Snapshot</h2>
+            <div class="backend-row">
+              <div class="backend"><span>Name</span><strong id="backend-name">-</strong></div>
+              <div class="backend"><span>Qubits</span><strong id="backend-qubits">-</strong></div>
+              <div class="backend"><span>Operational</span><strong id="backend-operational">-</strong></div>
+              <div class="backend"><span>Pending Jobs</span><strong id="backend-jobs">-</strong></div>
+            </div>
+          </div>
+
+          <div class="panel stack">
+            <h2>Calibration</h2>
+            <div class="metric-row">
+              <div class="metric"><span>Last Update</span><strong id="last-update">-</strong></div>
+              <div class="metric"><span>Median Readout Error</span><strong id="readout-error">-</strong></div>
+              <div class="metric"><span>Median 2Q Error</span><strong id="twoq-error">-</strong></div>
+              <div class="metric"><span>Couplers</span><strong id="coupler-count">-</strong></div>
+            </div>
+            <div class="map">
+              <div id="topology-graph" aria-label="Qubit coupling map"></div>
+            </div>
+          </div>
+
+          <div class="panel stack">
+            <h2>Result</h2>
+            <pre id="result">{}</pre>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+    <script>
+      fetch("/api/version")
+        .then((r) => r.json())
+        .then((d) => {
+          const el = document.getElementById("app-version");
+          if (el && typeof d.version === "string") el.textContent = "v" + d.version;
+        })
+        .catch(() => {});
+
+      const state = {
+        backends: [],
+        calibration: null,
+        selectedBackend: null,
+        pathSelection: [],
+        topologyNetwork: null,
+        topologyNodes: null,
+        topologyEdges: null,
+      };
+
+      const $ = (id) => document.getElementById(id);
+
+      const fields = {
+        apiKey: $("api-key"),
+        instanceCrn: $("instance-crn"),
+        backendSelect: $("backend-select"),
+        path: $("path"),
+        lives: $("lives"),
+        demoStrategy: $("demo-strategy"),
+        status: $("status"),
+        result: $("result"),
+      };
+
+      const topologyContainer = $("topology-graph");
+
+      function setStatus(message, kind = "") {
+        fields.status.textContent = message;
+        fields.status.className = `status ${kind}`.trim();
+      }
+
+      function formatPercent(value) {
+        return typeof value === "number" ? `${(value * 100).toFixed(3)}%` : "-";
+      }
+
+      function credentials() {
+        return {
+          api_key: fields.apiKey.value.trim(),
+          instance_crn: fields.instanceCrn.value.trim() || null,
+        };
+      }
+
+      function requireCredentials() {
+        const body = credentials();
+        if (!body.api_key) {
+          throw new Error("IBM Quantum API key is required.");
+        }
+        return body;
+      }
+
+      function selectedBackendName() {
+        const backendName = fields.backendSelect.value;
+        if (!backendName) {
+          throw new Error("Select a backend first.");
+        }
+        return backendName;
+      }
+
+      function parsePathAllowEmpty() {
+        const raw = fields.path.value.trim();
+        if (!raw) return [];
+        const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+        const path = [];
+        for (const part of parts) {
+          const parsed = Number(part);
+          if (!Number.isInteger(parsed) || parsed < 0) return [];
+          path.push(parsed);
+        }
+        return path;
+      }
+
+      function parsePath() {
+        const path = parsePathAllowEmpty();
+        if (!path.length) {
+          throw new Error("Choose a qubit path by clicking connected nodes on the map, or enter indices like 0,1,2.");
+        }
+        return path;
+      }
+
+      function uniqueCouplingEdges(edges) {
+        if (!edges?.length) return [];
+        const seen = new Set();
+        const out = [];
+        for (const pair of edges) {
+          const a = Number(pair[0]);
+          const b = Number(pair[1]);
+          const key = a < b ? `${a}-${b}` : `${b}-${a}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push([a, b]);
+          }
+        }
+        return out;
+      }
+
+      function buildAdjacency(nQubits, edges) {
+        const adj = Array.from({ length: nQubits }, () => []);
+        for (const [a, b] of edges) {
+          if (a >= 0 && a < nQubits && b >= 0 && b < nQubits) {
+            adj[a].push(b);
+            adj[b].push(a);
+          }
+        }
+        return adj;
+      }
+
+      function qubitReadoutErrorProb(q) {
+        if (typeof q.readout_error === "number") return q.readout_error;
+        if (typeof q.prob_meas1_prep0 === "number") return q.prob_meas1_prep0;
+        return null;
+      }
+
+      function errorColorFill(q, lo, hi) {
+        const p = qubitReadoutErrorProb(q);
+        if (p === null) return "#475569";
+        const span = hi > lo ? hi - lo : 1;
+        const t = Math.min(1, Math.max(0, (p - lo) / span));
+        const hue = 120 * (1 - t);
+        const sat = 62 + Math.round(18 * (1 - t));
+        const light = 42 + Math.round(12 * (1 - t));
+        return `hsl(${hue}, ${sat}%, ${light}%)`;
+      }
+
+      /** Scale Qiskit integer grid coords to vis-network space (centered at origin). */
+      function scaleGridToNetworkCoords(grid, widthUnits, heightUnits, pad = 56) {
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+        for (const p of grid) {
+          const gx = Number(p[0]);
+          const gy = Number(p[1]);
+          minX = Math.min(minX, gx);
+          maxX = Math.max(maxX, gx);
+          minY = Math.min(minY, gy);
+          maxY = Math.max(maxY, gy);
+        }
+        const gw = maxX - minX || 1;
+        const gh = maxY - minY || 1;
+        const sx = (widthUnits - 2 * pad) / gw;
+        const sy = (heightUnits - 2 * pad) / gh;
+        const s = Math.min(sx, sy);
+        const midX = (minX + maxX) / 2;
+        const midY = (minY + maxY) / 2;
+        return grid.map((p) => ({
+          x: (Number(p[0]) - midX) * s,
+          y: (Number(p[1]) - midY) * s,
+        }));
+      }
+
+      /** Push nodes apart until every pair is at least minDist apart (center-to-center). */
+      function enforceMinSeparation(pos, minDist, iterations = 100) {
+        const out = pos.map((p) => ({ x: p.x, y: p.y }));
+        const n = out.length;
+        if (n < 2 || minDist <= 0) return out;
+        for (let it = 0; it < iterations; it++) {
+          let moved = false;
+          for (let i = 0; i < n; i++) {
+            for (let j = i + 1; j < n; j++) {
+              let dx = out[j].x - out[i].x;
+              let dy = out[j].y - out[i].y;
+              let d = Math.hypot(dx, dy);
+              if (d < 1e-9) {
+                const ang = ((i * 17 + j * 31) % 360) * (Math.PI / 180);
+                dx = Math.cos(ang) * 1e-3;
+                dy = Math.sin(ang) * 1e-3;
+                d = Math.hypot(dx, dy);
+              }
+              if (d < minDist) {
+                const push = (minDist - d) / 2;
+                const ux = dx / d;
+                const uy = dy / d;
+                out[i].x -= ux * push;
+                out[i].y -= uy * push;
+                out[j].x += ux * push;
+                out[j].y += uy * push;
+                moved = true;
+              }
+            }
+          }
+          if (!moved) break;
+        }
+        return out;
+      }
+
+      function recenterPositions(pos) {
+        if (!pos.length) return pos;
+        let sx = 0;
+        let sy = 0;
+        for (const p of pos) {
+          sx += p.x;
+          sy += p.y;
+        }
+        sx /= pos.length;
+        sy /= pos.length;
+        return pos.map((p) => ({ x: p.x - sx, y: p.y - sy }));
+      }
+
+      /** Deterministic fallback when chip coordinates are unknown: index order on a square grid (not physical topology). */
+      function indexGridLayout(n, cell = 76) {
+        const cols = Math.max(1, Math.ceil(Math.sqrt(n)));
+        const rows = Math.ceil(n / cols);
+        const out = [];
+        const cx = (cols - 1) / 2;
+        const cy = (rows - 1) / 2;
+        for (let i = 0; i < n; i++) {
+          const c = i % cols;
+          const r = Math.floor(i / cols);
+          out.push({ x: (c - cx) * cell, y: (r - cy) * cell });
+        }
+        return out;
+      }
+
+      function destroyTopologyNetwork() {
+        if (state.topologyNetwork) {
+          state.topologyNetwork.destroy();
+          state.topologyNetwork = null;
+          state.topologyNodes = null;
+          state.topologyEdges = null;
+        }
+      }
+
+      function nodeTooltipText(q) {
+        return [
+          `Logical qubit ${q.index}`,
+          `Readout error: ${formatPercent(q.readout_error)}`,
+          `P(meas 1 | prep 0): ${formatPercent(q.prob_meas1_prep0)}`,
+          `T1: ${q.t1_us?.toFixed?.(1) ?? "-"} μs`,
+          `T2: ${q.t2_us?.toFixed?.(1) ?? "-"} μs`,
+          typeof q.operational === "boolean" ? `Operational: ${q.operational}` : "",
+        ]
+          .filter(Boolean)
+          .join("\n");
+      }
+
+      function applyTopologyHighlights() {
+        const cal = state.calibration;
+        if (!cal?.qubits?.length || !state.topologyNodes) return;
+        const n = cal.qubits.length;
+        const edges = uniqueCouplingEdges(cal.coupling_edges || []);
+        const adj = buildAdjacency(n, edges);
+        const pathArr = parsePathAllowEmpty().filter((i) => i >= 0 && i < n);
+        const pathSet = new Set(pathArr);
+        const last = pathArr.length ? pathArr[pathArr.length - 1] : null;
+        const reachable = new Set();
+        if (last !== null && adj[last]) {
+          for (const j of adj[last]) reachable.add(j);
+        }
+        const errors = cal.qubits.map(qubitReadoutErrorProb).filter((x) => x !== null);
+        const lo = errors.length ? Math.min(...errors) : 0;
+        const hi = errors.length ? Math.max(...errors) : 1;
+        const updates = [];
+        for (let i = 0; i < n; i++) {
+          const q = cal.qubits[i];
+          const bg = errorColorFill(q, lo, hi);
+          let border = "rgba(125,211,252,0.45)";
+          let borderWidth = n > 120 ? 1 : 1.5;
+          if (pathSet.has(i)) {
+            border = "#38bdf8";
+            borderWidth = n > 120 ? 2.5 : 3;
+          } else if (reachable.has(i)) {
+            border = "#c4f080";
+            borderWidth = n > 120 ? 2 : 2.5;
+          }
+          updates.push({
+            id: i,
+            color: {
+              background: bg,
+              border,
+              highlight: { background: bg, border: "#ffffff" },
+              hover: { background: bg, border: "#a5f3fc" },
+            },
+            borderWidth,
+          });
+        }
+        state.topologyNodes.update(updates);
+      }
+
+      function buildTopologyNetwork() {
+        const cal = state.calibration;
+        if (!cal?.qubits?.length || typeof vis === "undefined") return;
+
+        destroyTopologyNetwork();
+        topologyContainer.innerHTML = "";
+
+        const qubits = cal.qubits;
+        const n = qubits.length;
+        const edges = uniqueCouplingEdges(cal.coupling_edges || []);
+        const errors = qubits.map(qubitReadoutErrorProb).filter((x) => x !== null);
+        const lo = errors.length ? Math.min(...errors) : 0;
+        const hi = errors.length ? Math.max(...errors) : 1;
+
+        const chipApi = cal.qubit_grid;
+        const useChipGrid = Array.isArray(chipApi) && chipApi.length === n;
+        const nxApi = cal.nx_layout;
+        const useNxLayout = !useChipGrid && Array.isArray(nxApi) && nxApi.length === n;
+        const layoutW = 2400;
+        const layoutH = 1400;
+        const layoutPad = n > 120 ? 96 : 72;
+        let fixedXY;
+        if (useChipGrid) {
+          fixedXY = scaleGridToNetworkCoords(chipApi, layoutW, layoutH, layoutPad);
+        } else if (useNxLayout) {
+          fixedXY = scaleGridToNetworkCoords(nxApi, layoutW, layoutH, layoutPad);
+        } else {
+          fixedXY = indexGridLayout(n, n > 120 ? 56 : n > 80 ? 64 : 76);
+        }
+        const useEmbeddingLayout = useChipGrid || useNxLayout;
+
+        const dotMin = n > 120 ? 1.25 : n > 80 ? 1.5 : 2;
+        const dotMax = n > 120 ? 2.5 : n > 80 ? 3 : 4;
+        const baseBorder = n > 120 ? 0.6 : 0.8;
+        const minCenterDist = Math.max(34, dotMax * 6 + baseBorder * 4);
+        if (!useChipGrid) {
+          fixedXY = recenterPositions(enforceMinSeparation(fixedXY, minCenterDist));
+        }
+
+        const nodeRows = qubits.map((q, i) => {
+          const bg = errorColorFill(q, lo, hi);
+          return {
+            id: i,
+            label: "",
+            title: nodeTooltipText(q),
+            x: fixedXY[i].x,
+            y: fixedXY[i].y,
+            fixed: { x: true, y: true },
+            color: {
+              background: bg,
+              border: "rgba(125,211,252,0.45)",
+              highlight: { background: bg, border: "#ffffff" },
+              hover: { background: bg, border: "#a5f3fc" },
+            },
+            borderWidth: baseBorder,
+          };
+        });
+
+        const edgeRows = [];
+        for (const [a, b] of edges) {
+          if (a < 0 || b < 0 || a >= n || b >= n) continue;
+          const loI = Math.min(a, b);
+          const hiI = Math.max(a, b);
+          edgeRows.push({ id: `e-${loI}-${hiI}`, from: a, to: b });
+        }
+
+        state.topologyNodes = new vis.DataSet(nodeRows);
+        state.topologyEdges = new vis.DataSet(edgeRows);
+
+        const options = {
+          physics: false,
+          edges: {
+            smooth: false,
+            color: {
+              color: "#3b82f6",
+              highlight: "#60a5fa",
+              hover: "#93c5fd",
+            },
+            width: n > 120 ? 6 : 7,
+            selectionWidth: 8,
+          },
+          nodes: {
+            shape: "dot",
+            scaling: {
+              min: dotMin,
+              max: dotMax,
+              label: { enabled: false },
+            },
+            font: { size: 0, strokeWidth: 0 },
+          },
+          interaction: { hover: true, tooltipDelay: 60, zoomView: true, dragView: true },
+        };
+
+        state.topologyNetwork = new vis.Network(
+          topologyContainer,
+          { nodes: state.topologyNodes, edges: state.topologyEdges },
+          options,
+        );
+
+        setTimeout(() => {
+          state.topologyNetwork.fit({
+            animation: { duration: 240, easingFunction: "easeInOutQuad" },
+            padding: n > 120 ? 56 : 40,
+          });
+        }, 0);
+
+        state.topologyNetwork.on("click", (params) => {
+          if (params.nodes.length === 1) {
+            handleNodeClick(Number(params.nodes[0]));
+          }
+        });
+
+        applyTopologyHighlights();
+      }
+
+      function renderTopologyGraph() {
+        const cal = state.calibration;
+        destroyTopologyNetwork();
+        if (!cal?.qubits?.length) {
+          topologyContainer.innerHTML =
+            '<p class="topology-placeholder">Load calibration to see couplers and qubits.</p>';
+          return;
+        }
+        if (typeof vis === "undefined") {
+          topologyContainer.innerHTML =
+            '<p class="topology-placeholder">Graph library failed to load (check network / CSP).</p>';
+          return;
+        }
+        buildTopologyNetwork();
+      }
+
+      function applyPathVisuals() {
+        applyTopologyHighlights();
+      }
+
+      function setPathSelection(next) {
+        state.pathSelection = next;
+        fields.path.value = next.join(",");
+        applyPathVisuals();
+      }
+
+      function handleNodeClick(idx) {
+        const cal = state.calibration;
+        if (!cal?.qubits?.length) return;
+        const n = cal.qubits.length;
+        const edges = uniqueCouplingEdges(cal.coupling_edges || []);
+        const adj = buildAdjacency(n, edges);
+        let path = parsePathAllowEmpty().filter((i) => i >= 0 && i < n);
+
+        if (!path.length) {
+          setPathSelection([idx]);
+          return;
+        }
+
+        const last = path[path.length - 1];
+        if (idx === last) {
+          path.pop();
+          setPathSelection(path);
+          return;
+        }
+
+        const neighbors = new Set(adj[last] || []);
+        if (neighbors.has(idx)) {
+          path.push(idx);
+          setPathSelection(path);
+          return;
+        }
+
+        setPathSelection([idx]);
+      }
+
+      async function postJson(url, body) {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.detail || `Request failed with HTTP ${response.status}`);
+        }
+        return data;
+      }
+
+      function showJson(value) {
+        fields.result.textContent = JSON.stringify(value, null, 2);
+      }
+
+      function updateBackendSnapshot(backend) {
+        $("backend-name").textContent = backend?.name || "-";
+        $("backend-qubits").textContent = backend?.num_qubits ?? "-";
+        $("backend-operational").textContent =
+          typeof backend?.operational === "boolean" ? String(backend.operational) : "-";
+        $("backend-jobs").textContent = backend?.pending_jobs ?? "-";
+      }
+
+      function updateCalibration(calibration) {
+        $("last-update").textContent = calibration?.last_update_iso || "-";
+        $("readout-error").textContent = formatPercent(calibration?.median_readout_error);
+        $("twoq-error").textContent = formatPercent(calibration?.median_two_qubit_error);
+        $("coupler-count").textContent = calibration?.coupling_edges?.length ?? "-";
+        const wrap = $("heron2-layout-wrap");
+        const heronCb = $("heron2-official-layout");
+        if (!calibration) {
+          wrap.hidden = true;
+          heronCb.checked = false;
+        } else if (calibration.heron2_official_layout_available) {
+          wrap.hidden = false;
+          heronCb.checked = Boolean(calibration.use_heron2_official_layout_applied);
+        } else {
+          wrap.hidden = true;
+          heronCb.checked = false;
+        }
+        state.pathSelection = [];
+        fields.path.value = "";
+        renderTopologyGraph();
+      }
+
+      function setBusy(button, busy) {
+        button.disabled = busy;
+        button.dataset.originalText ||= button.textContent;
+        button.textContent = busy ? "Working..." : button.dataset.originalText;
+      }
+
+      async function withBusy(button, action) {
+        setBusy(button, true);
+        try {
+          await action();
+        } catch (error) {
+          setStatus(error.message, "error");
+          showJson({ error: error.message });
+        } finally {
+          setBusy(button, false);
+        }
+      }
+
+      $("check-health").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          const response = await fetch("/api/health");
+          const data = await response.json();
+          setStatus(`API status: ${data.status}`, "ok");
+          showJson(data);
+        }),
+      );
+
+      $("load-backends").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          const data = await postJson("/api/backends", requireCredentials());
+          state.backends = data.backends || [];
+          fields.backendSelect.innerHTML = state.backends.length
+            ? state.backends.map((backend) => `<option value="${backend.name}">${backend.name}</option>`).join("")
+            : '<option value="">No backends returned</option>';
+          state.selectedBackend = state.backends[0] || null;
+          updateBackendSnapshot(state.selectedBackend);
+          setStatus(`Loaded ${state.backends.length} backend(s).`, "ok");
+          showJson(data);
+        }),
+      );
+
+      fields.backendSelect.addEventListener("change", () => {
+        state.selectedBackend = state.backends.find((backend) => backend.name === fields.backendSelect.value) || null;
+        state.calibration = null;
+        updateBackendSnapshot(state.selectedBackend);
+        updateCalibration(null);
+      });
+
+      $("load-calibration").addEventListener("click", (event) =>
+        withBusy(event.currentTarget, async () => {
+          const wrap = $("heron2-layout-wrap");
+          const data = await postJson("/api/calibration", {
+            ...requireCredentials(),
+            backend_name: selectedBackendName(),
+            use_heron2_official_layout: !wrap.hidden && $("heron2-official-layout").checked,
+          });
+          state.calibration = data;
+          updateCalibration(data);
+          setStatus(`Loaded calibration for ${data.backend_name}.`, "ok");
+          showJson(data);
+        }),
+      );
+
+      $("heron2-official-layout").addEventListener("change", () => {
+        const wrap = $("heron2-layout-wrap");
+        if (wrap.hidden || !state.calibration) return;
+        const btn = $("load-calibration");
+        withBusy(btn, async () => {
+          const data = await postJson("/api/calibration", {
+            ...requireCredentials(),
+            backend_name: selectedBackendName(),
+            use_heron2_official_layout: $("heron2-official-layout").checked,
+          });
+          state.calibration = data;
+          updateCalibration(data);
+          setStatus(`Loaded calibration for ${data.backend_name}.`, "ok");
+          showJson(data);
+        });
+      });
+
+      $("clear-path").addEventListener("click", () => setPathSelection([]));
+
+      fields.path.addEventListener("input", () => {
+        state.pathSelection = parsePathAllowEmpty();
+        applyPathVisuals();
+      });
+
+      async function runPath(event, demoMode) {
+        await withBusy(event.currentTarget, async () => {
+          const path = parsePath();
+          const demoStrategy = fields.demoStrategy.value;
+          const payload = {
+            ...requireCredentials(),
+            backend_name: selectedBackendName(),
+            path,
+            starting_lives: Number(fields.lives.value),
+            demo_mode: demoMode,
+          };
+          if (demoMode) payload.demo_strategy = demoStrategy;
+          const data = await postJson("/api/run-path", payload);
+          state.pathSelection = [...path];
+          fields.path.value = path.join(",");
+          applyPathVisuals();
+          const demoLabels = {
+            deterministic: "deterministic demo",
+            perfect: "perfect-outcome demo",
+            noisy: "noisy-calibration demo",
+          };
+          setStatus(
+            demoMode
+              ? `Demo complete (${demoLabels[demoStrategy] ?? demoStrategy}).`
+              : `Hardware run complete${data.job_id ? `, job ${data.job_id}` : ""}.`,
+            data.success ? "ok" : "error",
+          );
+          showJson(data);
+        });
+      }
+
+      $("run-demo").addEventListener("click", (event) => runPath(event, true));
+      $("run-hardware").addEventListener("click", (event) => runPath(event, false));
+    </script>
+  </body>
+</html>

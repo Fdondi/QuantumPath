@@ -1,0 +1,6 @@
+# For use only inside a Docker test stage or CI container.
+# Do not run pip on the host; see docs/docker.md
+-r requirements.txt
+pytest==8.3.4
+pytest-asyncio==0.25.0
+httpx==0.28.1

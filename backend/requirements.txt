@@ -1,0 +1,7 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+qiskit==2.4.1
+qiskit-ibm-runtime==0.46.1
+pydantic==2.10.4
+python-multipart==0.0.20
+networkx==3.4.2
