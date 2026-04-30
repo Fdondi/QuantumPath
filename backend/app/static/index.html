@@ -432,14 +432,6 @@
             Starting lives
             <input id="lives" min="1" max="100" type="number" value="3" />
           </label>
-          <label>
-            Demo strategy (Run Demo only)
-            <select id="demo-strategy">
-              <option value="deterministic">Hash — deterministic synthetic bits</option>
-              <option value="perfect">Perfect — all zeros (preview success)</option>
-              <option value="noisy">Noisy — random using calibration errors</option>
-            </select>
-          </label>
           <div class="actions">
             <button id="run-demo" type="button">Run Demo</button>
             <button class="secondary" id="run-hardware" type="button">Run Hardware</button>
@@ -542,7 +534,6 @@
         backendSelect: $("backend-select"),
         path: $("path"),
         lives: $("lives"),
-        demoStrategy: $("demo-strategy"),
         status: $("status"),
         result: $("result"),
       };
@@ -1273,7 +1264,7 @@
       async function runPath(event, demoMode) {
         await withBusy(event.currentTarget, async () => {
           const path = parsePath();
-          const demoStrategy = fields.demoStrategy.value;
+          const demoStrategy = "noisy";
           const runStartingLives = Number(fields.lives.value) || 3;
           state.catAnim.running = false;
           state.pathSelection = [...path];
