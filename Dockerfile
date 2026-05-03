@@ -15,7 +15,8 @@ FROM deps-plain AS app
 COPY backend/ backend/
 COPY docs/VERSION docs/VERSION
 ENV PYTHONPATH=/app
-EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Fallback when nothing sets PORT at container start; compose and Cloud Run set it explicitly.
+ENV PORT=8000
+CMD python -m uvicorn backend.app.main:app --host 0.0.0.0 --port ${PORT}
 
 FROM app AS app-cloudrun

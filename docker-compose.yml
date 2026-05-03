@@ -1,9 +1,11 @@
 services:
   app:
     build: .
+    # Loads PORT (and other vars) into the container; same file is used below for compose interpolation.
     env_file:
       - .env
-    ports:
-      - "8070:8080"
     environment:
       CORS_ORIGINS: "*"
+    # Host and container port both use PORT from the project root .env file.
+    ports:
+      - "${PORT:-8000}:${PORT:-8000}"
