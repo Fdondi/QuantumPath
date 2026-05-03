@@ -16,6 +16,6 @@ COPY backend/ backend/
 COPY docs/VERSION docs/VERSION
 ENV PYTHONPATH=/app
 EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 
 FROM app AS app-cloudrun

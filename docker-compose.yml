@@ -4,6 +4,6 @@ services:
     env_file:
       - .env
     ports:
-      - "8070:8000"
+      - "8070:8080"
     environment:
       CORS_ORIGINS: "*"
